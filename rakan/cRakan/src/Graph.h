@@ -5,13 +5,11 @@
 #include <stdio.h>          // for FILE *
 
 #include <unordered_set>    // for std::unordered_set
-#include <unordered_map>    // for std::unordered_map
-#include <utility>          // for std::pair
 #include <vector>           // for std::vector
+#include <map>           // for std::map
 
-#include "./Node.h"         // for Node class
+#include "./Edge.h"         // for Edge class
 
-using std::pair;
 using std::unordered_set;
 using std::unordered_map;
 using std::vector;
@@ -52,13 +50,15 @@ class Graph {
   /////////////////////////////////////////////////////////////////////////////
 
   /*
-  * Adds a node to this graph.
+  * Adds a precinct to this graph. Assumes that the precinct is new.
   * 
-  * @param    node    the node to add
+  * @param    county                the county this precinct belongs to.
+  * @param    minority_population   the min. pop for this precinct. 
+  * @param    majority_population   the maj. pop for this precinct.
   * 
-  * @return true iff adding node successful, false otherwise
+  * 
   */
-  bool AddNode(Node *node);
+  void AddPrecinct(uint32_t county, uint32_t minority_population, uint32_t majority_population);
 
   /*
   * Adds an edge between the two supplied nodes. If either node does not
@@ -69,27 +69,26 @@ class Graph {
   * 
   * @return true iff adding edge successful, false otherwise
   */
-  bool AddEdge(Node *node1, Node *node2);
+  bool AddEdge(uint32_t node1, uint32_t node2);
 
   /*
   * Adds to the state population.
   * 
   * @param    val   the value to add to the state population
   */
-  void AddStatePop(uint32_t val);
+  void AddStatePop(uint32_t val) { state_pop_ += val; } 
 
   /*
-  * Adds the given node to the district. Does NOT remove node from its old
-  * district. Updates the population and demographics of the district
-  * accordingly.
+  * Updates precinct to be inside of the district. Also updates district's
+  * population data
   * 
-  * @param      node        the node to add
+  * @param      precinct        the precinct to add
   * @param      district    the district to add the node to
   * 
   * @return true iff node does not already belong in district and addition
   *         successful, false otherwise
   */
-  bool AddNodeToDistrict(Node *node, int district);
+  bool AddNodeToDistrict(uint32_t precinct, uint32_t district);
 
   /*
   * Removes the given node from the given district. Node must exist in district
@@ -102,31 +101,7 @@ class Graph {
   * @return true iff node exists in district and removal successful, false
   *         otherwise
   */
-  bool RemoveNodeFromDistrict(Node *node, int district);
-
-  /*
-  * Adds the given node to the given district's set of perim nodes. Node must
-  * exist in the district before addition.
-  * 
-  * @param      node        the perimeter node to add
-  * @param      district    the district to add the perimeter node to
-  * 
-  * @return true iff node exists in district and addition to perim nodes list
-  *         successful, false otherwise
-  */
-  bool AddNodeToDistrictPerim(Node *node, int district);
-
-  /*
-  * Removes the given node from the given district's set of perim nodes. Node
-  * must be on the perimeter of the district before removal.
-  * 
-  * @param      node        the perimeter node to remove
-  * @param      district    the district to remove the perimeter node from
-  * 
-  * @return true iff node is a perimeter node in given district and removal
-  *         successful, false otherwise
-  */
-  bool RemoveNodeFromDistrictPerim(Node *node, int district);
+  bool SetPrecinctToDistrict(uint32_t precinct_id, uint32_t district);
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -134,13 +109,13 @@ class Graph {
   /////////////////////////////////////////////////////////////////////////////
 
   /*
-  * Queries whether or not the node exists in the graph.
+  * Queries whether or not the precinct exists in the graph.
   * 
-  * @param    node    the node to test for existence
+  * @param    precinct    the precinct to test for existence
   * 
-  * @return true iff the node exists on the graph, false otherwise
+  * @return true iff the precinct exists in the graph, false otherwise
   */
-  bool ContainsNode(const Node& node) const;
+  bool ContainsPrecinct(uint32_t precinct) const { return precinct < curr_nodes_; }
 
   /*
   * Queries whether or not an edge exists between the two nodes.
@@ -151,18 +126,18 @@ class Graph {
   * @return true iff the nodes exist and an edge exists between them, false
   *         otherwise
   */
-  bool ContainsEdge(const Node& node1, const Node& node2) const;
+  bool ContainsEdge(uint32_t node1, uint32_t node2) const; 
 
   /*
   * Queries whether or not the node exists in the district.
   * 
-  * @param    node        the node to test for existence
+  * @param    node        the precinct id to test for existence
   * @param    district    the district to test whether it contains node
   * 
   * @return true iff the node exists on the graph and is in distric, false
   *         otherwise
   */
-  bool NodeExistsInDistrict(const Node& node, uint32_t district) const;
+  bool NodeExistsInDistrict(uint32_t node, uint32_t district) const;
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -170,42 +145,55 @@ class Graph {
   /////////////////////////////////////////////////////////////////////////////
 
   /*
-  * Gets the node on this graph by its ID.
+  * Gets the county number for this node.
+  * Assumes that the node exists!
   * 
   * @param    id    the id of the node to get
   * 
-  * @return a pointer to the node if it exists on this graph; nullptr if the
-  *         node does not exist
+  * @return the county number
   */
-  Node* GetNode(const uint32_t id) const;
+  uint32_t GetNodeCounty(const uint32_t id) const { return precinct_info[id][0]; }
 
   /*
-  * Gets the array of nodes on this graph.
+  * Gets the minority population number for this node.
+  * Assumes that the node exists!
   * 
-  * @return the array of nodes on this graph; length is the num_nodes_ field
+  * @param    id    the id of the node to get
+  * 
+  * @return the minority population number
   */
-  Node** GetNodes() const;
+  uint32_t GetNodeMin(const uint32_t id) const { return precinct_info[id][1]; }
+
+  /*
+  * Gets the majority population number for this node.
+  * Assumes that the node exists!
+  * 
+  * @param    id    the id of the node to get
+  * 
+  * @return the majority population number
+  */
+  uint32_t GetNodeMaj(const uint32_t id) const { return precinct_info[id][2]; }
 
   /*
   * Gets the number of nodes on this graph.
   * 
   * @return the number of nodes on this graph as an unsigned 32-bit int
   */
-  uint32_t GetNumNodes() const;
+  uint32_t GetNumNodes() const { return num_nodes_ ;} 
 
   /*
   * Gets the number of districts on this graph.
   * 
   * @return the number of districts on this graph as an unsigned 32-bit int
   */
-  uint32_t GetNumDistricts() const;
+  uint32_t GetNumDistricts() const { return num_districts_; }
 
   /*
   * Gets the state population of this graph.
   * 
   * @return the state population of this graph as an unsigned 32-bit int
   */
-  uint32_t GetStatePop() const;
+  uint32_t GetStatePop() const { return state_pop_; }
 
   /*
   * Gets the set of nodes in the given district.
@@ -215,54 +203,59 @@ class Graph {
   * @return a pointer to the set of nodes in the district; nullptr if the
   *         district does not exist
   */
-  unordered_set<int>* GetNodesInDistrict(const uint32_t district) const;
+  unordered_set<uint32_t>* GetNodesInDistrict(const uint32_t district) const { 
+    if(district < num_districts_) { return nodes_in_district_[district]; } 
+    else { return nullptr; }
+  }
 
   /*
-  * Gets the set of nodes on the given district's perimeter.
-  * 
-  * @param   district    the district to get the nodes on the perimeter from
-  * 
-  * @return a pointer to the set of nodes on the district perimeter; nullptr
-  *         if the district does not exist
+  * Returns a set of all of the edges that are crossing district boundaries.
+  * Returns as a const variable.
   */
-  unordered_set<int>* GetPerimNodes(const uint32_t district) const;
-
-  /*
-  * Gets the set of neighbors of the node. Assumes the node is on the
-  * perimeter of the given district.
-  * 
-  * @param    district    the district that the perim_node resides in
-  * @param    node        the node to get the neighbors of
-  * 
-  * @return a pointer to the set of neighbor nodes of perim_node; nullptr
-  *         if either the district or node does not exist
-  */
-  unordered_set<uint32_t>* GetPerimNodeNeighbors(const uint32_t district,
-                                                 const uint32_t node) const;
+  const unordered_set<Edge>* GetCrossingEdges() const 
+    { return const_cast <unordered_set<Edge>*> (&edges_crossing_); }
 
   /*
   * Gets the total population of the given district.
   * 
   * @param    district    the district to get the total population of
   * 
-  * @return the total population of the given district; -1 if the district
+  * @return the total population of the given district; 0 if the district
   *         does not exist
   */
-  int32_t GetDistrictPop(const uint32_t district) const;
+  uint32_t GetDistrictPop(const uint32_t district) const {
+    if(district < num_districts_) { return pop_of_district_[district]; } 
+    else { return 0; }
+  }
 
   /*
   * Gets the total minority population of the given district.
   * 
-  * @param    district    the district to get the total miniroty population of
+  * @param    district    the district to get the total minority population from.
   * 
-  * @return the total minority population of the given district; -1 if the
+  * @return the total minority population of the given district; 0 if the
   *         district does not exist
   */
-  int32_t GetMinorityPop(const uint32_t district) const;
+  uint32_t GetMinorityPop(const uint32_t district) const {
+    if(district < num_districts_) { return pop_of_district_[district]; } 
+    else { return 0; }
+  }
+
+  /*
+  * Gets the edges crossing into other districts for this district.
+  * 
+  * @param    district    the district to get the edges from.
+  * 
+  * @return A vector containing the edges crossing into other districts.
+  */
+  vector<Edge> GetOutgoing(uint32_t district) const { return outgoing_edges_.at(district) ; }
 
  private:
-  // The number of nodes on this graph.
+  // The intended total nodes in this graph.
   uint32_t num_nodes_;
+
+  // The nodes in the graph so far.
+  uint32_t curr_nodes_;
 
   // The number of districts on this graph.
   uint32_t num_districts_;
@@ -270,28 +263,21 @@ class Graph {
   // The total state population of this graph.
   uint32_t state_pop_;
 
-  // An array of all the nodes on this graph. The index of the array is
-  // the node ID.
-  Node **nodes_;
-
   // An array of pointers to sets. The index of the array
   // is the district ID, and the pointer at the index points
-  // to a set of nodes in that district.
-  unordered_set<int> **nodes_in_district_;
+  // to a set of precinct ids in that district.
+  unordered_set<uint32_t> **nodes_in_district_;
 
-  // An array of pointers to sets. The index of the array
-  // is the district ID, and the pointer at the index points
-  // to a set of nodes on the perimeter of that district.
-  unordered_set<int> **nodes_on_perim_;
-
-  vector<pair<int, int>> *perim_edges_;
-
-  // An array of maps. The index of the map is the district
-  // ID. Each district map stores node IDs as keys, and each
-  // node must be on the perimeter of the district. Corresponding
-  // to each key contains a set of node IDs that are neighbors
-  // to the perimeter node.
-  unordered_map<int, unordered_set<uint32_t> *> **perim_nodes_to_neighbors_;
+  // A set of edges that cross a district boundary in the graph.
+  unordered_set<Edge> edges_crossing_;
+  
+  // An array of arrays, with the index of the overall array referring to the
+  // precinct id and the array at each index containing:
+  // 0 : The county number
+  // 1 : The minority pop number
+  // 2 : The majority pop number
+  // for that certain precinct.
+  uint32_t** precinct_info;
 
   // An array of populations. The index of the array is the district
   // ID. The value at that index corresponds to the population in
@@ -302,6 +288,13 @@ class Graph {
   // the district ID. The value at that index corresponds to the
   // minority population in that district.
   uint32_t *min_pop_of_district_;
+
+  // An array of array of Edges. The index of the general array
+  // corresponds to the precinct id, and the array at each index is
+  // all of the edges associated to that id.
+  Edge** all_edges_;
+
+  unordered_map<uint32_t, vector<Edge>> outgoing_edges_;
 
   // Needed for populating data structures in graph from file.
   friend class Runner;
